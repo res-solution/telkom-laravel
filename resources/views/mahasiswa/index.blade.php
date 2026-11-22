@@ -71,7 +71,20 @@
     @endif
 
     <div class="container-custom px-3">
-        <h2 class="mb-3 fw-normal" style="color: #212529;">Data Mahasiswa</h2>
+        <!-- HEADER HALAMAN & INFO USER LOGIN -->
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom">
+            <h2 class="mb-0 fw-normal" style="color: #212529;">Data Mahasiswa</h2>
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-muted small">
+                    Halo, <strong>{{ auth()->user()->name }}</strong>
+                    <span class="badge bg-dark text-uppercase ms-1">{{ str_replace('_', ' ', auth()->user()->role) }}</span>
+                </span>
+                <form action="{{ route('logout') }}" method="POST" class="d-inline">
+                    @csrf
+                    <button type="submit" class="btn btn-outline-danger btn-sm">Logout</button>
+                </form>
+            </div>
+        </div>
 
         <!-- KARTU STATISTIK RINGKASAN (HASIL FUNGSI AGREGAT SQL) -->
         <div class="row g-3 mb-4">
@@ -111,21 +124,48 @@
 
         <div class="row g-2 align-items-center justify-content-between mb-3">
             <div class="col-md-auto d-flex flex-wrap gap-2">
-                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalTambah">
-                    Tambah Mahasiswa
-                </button>
-                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalJurusan">
-                    Kelola Jurusan ({{ $jurusans->count() }})
-                </button>
-                <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#modalPengajar">
-                    Kelola Pengajar ({{ $pengajars->count() }})
-                </button>
-                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalSampah">
-                    Tong Sampah ({{ $mahasiswasTerhapus->count() }})
-                </button>
+                @if(in_array(auth()->user()->role, ['admin', 'atasan_admin']))
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalTambah">
+                        Tambah Mahasiswa
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalJurusan">
+                        Kelola Jurusan ({{ $jurusans->count() }})
+                    </button>
+
+                    @if(auth()->user()->role === 'atasan_admin')
+                        <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#modalPengajar">
+                            Kelola Pengajar ({{ $pengajars->count() }})
+                        </button>
+                        <a href="{{ route('verifikasi-trainer.index') }}" class="btn btn-warning fw-semibold">
+                            Verifikasi Trainer
+                            @if($jumlahPendingTrainer > 0)
+                                <span class="badge bg-danger ms-1">{{ $jumlahPendingTrainer }}</span>
+                            @endif
+                        </a>
+                    @else
+                        <a href="{{ route('pengajuan-trainer.index') }}" class="btn btn-outline-success">
+                            Pengajuan Trainer
+                            @if($jumlahPendingTrainer > 0)
+                                <span class="badge bg-warning text-dark ms-1">{{ $jumlahPendingTrainer }}</span>
+                            @endif
+                        </a>
+                    @endif
+
+                    <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalSampah">
+                        Tong Sampah ({{ $mahasiswasTerhapus->count() }})
+                    </button>
+                @elseif(auth()->user()->role === 'trainer')
+                    <span class="badge bg-success-subtle text-success border border-success px-3 py-2">
+                        Akses Trainer: Menampilkan mahasiswa bimbingan Anda (Klik angka pelanggaran untuk mencatat/mengelola)
+                    </span>
+                @else
+                    <span class="badge bg-secondary-subtle text-secondary border border-secondary px-3 py-2">
+                        Akses Mahasiswa: Mode Lihat Data & Riwayat Pelanggaran Pribadi
+                    </span>
+                @endif
             </div>
 
-            <div class="col-md-6">
+            <div class="col-md-5">
                 <form action="{{ route('mahasiswa.index') }}" method="GET" class="row g-2 justify-content-md-end">
                     <div class="col-sm-5">
                         <input type="text" name="search" class="form-control" placeholder="Cari NRP, Nama, Pengajar..." value="{{ request('search') }}">
@@ -165,7 +205,9 @@
                         <th>Wali / Pengajar</th>
                         <th>No. Telepon</th>
                         <th style="width: 155px;" class="text-center">Pelanggaran</th>
-                        <th style="width: 135px;">Aksi</th>
+                        @if(in_array(auth()->user()->role, ['admin', 'atasan_admin']))
+                            <th style="width: 135px;">Aksi</th>
+                        @endif
                     </tr>
                 </thead>
                 <tbody>
@@ -182,10 +224,11 @@
                         <td class="text-center">
                             <a href="{{ route('pelanggaran.show', $mhs->id) }}"
                                class="btn btn-sm fw-bold px-3 {{ $mhs->pelanggarans_count > 0 ? 'btn-danger' : 'btn-outline-secondary' }}"
-                               title="Klik untuk melihat & mengelola detail pelanggaran">
+                               title="Klik untuk melihat detail pelanggaran">
                                 {{ $mhs->pelanggarans_count }}
                             </a>
                         </td>
+                        @if(in_array(auth()->user()->role, ['admin', 'atasan_admin']))
                         <td>
                             <button type="button"
                                 class="btn btn-warning btn-sm"
@@ -208,10 +251,11 @@
                                 <button type="submit" class="btn btn-danger btn-sm">Hapus</button>
                             </form>
                         </td>
+                        @endif
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="10" class="text-center text-muted py-3">
+                        <td colspan="{{ in_array(auth()->user()->role, ['admin', 'atasan_admin']) ? 10 : 9 }}" class="text-center text-muted py-3">
                             Data mahasiswa tidak ditemukan.
                         </td>
                     </tr>
@@ -221,7 +265,8 @@
         </div>
     </div>
 
-    <!-- MODAL KELOLA PENGAJAR / WALI -->
+    @if(auth()->user()->role === 'atasan_admin')
+    <!-- MODAL KELOLA PENGAJAR / WALI (KHUSUS ATASAN ADMIN) -->
     <div class="modal fade" id="modalPengajar" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -277,7 +322,9 @@
             </div>
         </div>
     </div>
+    @endif
 
+    @if(in_array(auth()->user()->role, ['admin', 'atasan_admin']))
     <!-- MODAL KELOLA JURUSAN -->
     <div class="modal fade" id="modalJurusan" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg">
@@ -506,6 +553,7 @@
             </div>
         </div>
     </div>
+    @endif
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
